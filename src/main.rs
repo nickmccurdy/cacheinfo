@@ -3,7 +3,7 @@ extern crate lazy_static;
 use fs_extra::dir::get_size;
 use home::home_dir;
 use pretty_bytes::converter::convert;
-use std::{collections::HashMap, env::consts::OS};
+use std::{collections::HashMap, env::consts::OS, thread};
 
 struct CachePathEntry {
     name: &'static str,
@@ -59,11 +59,22 @@ impl From<fs_extra::error::Error> for Error {
 }
 
 fn main() -> Result<(), Error> {
-    for CachePathEntry { name, paths } in &*CACHE_PATHS {
-        let cache_path = home_dir()
-            .ok_or(Error::NoHome)?
-            .join(paths.get(OS).unwrap_or_else(|| paths.get("linux").unwrap()));
-        println!("{} {}", name, convert(get_size(cache_path)? as f64));
+    let handles = CACHE_PATHS
+        .iter()
+        .map(|CachePathEntry { name, paths }| {
+            thread::spawn(move || {
+                let cache_path = home_dir()
+                    .ok_or(Error::NoHome)?
+                    .join(paths.get(OS).unwrap_or_else(|| paths.get("linux").unwrap()));
+                println!("{} {}", name, convert(get_size(cache_path)? as f64));
+                Ok::<(), Error>(())
+            })
+        })
+        .collect::<Vec<_>>();
+
+    for handle in handles {
+        handle.join().unwrap()?;
     }
+
     Ok(())
 }
