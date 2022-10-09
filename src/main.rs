@@ -47,21 +47,21 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-enum CacheInfoError {
-    FSError(fs_extra::error::Error),
-    NoHomeError,
+enum Error {
+    FS(fs_extra::error::Error),
+    NoHome,
 }
 
-impl From<fs_extra::error::Error> for CacheInfoError {
+impl From<fs_extra::error::Error> for Error {
     fn from(err: fs_extra::error::Error) -> Self {
-        CacheInfoError::FSError(err)
+        Self::FS(err)
     }
 }
 
-fn main() -> Result<(), CacheInfoError> {
+fn main() -> Result<(), Error> {
     for CachePathEntry { name, paths } in &*CACHE_PATHS {
         let cache_path = home_dir()
-            .ok_or(CacheInfoError::NoHomeError)?
+            .ok_or(Error::NoHome)?
             .join(paths.get(OS).unwrap_or_else(|| paths.get("linux").unwrap()));
         println!("{} {}", name, convert(get_size(cache_path)? as f64));
     }
